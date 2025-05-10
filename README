@@ -1,0 +1,6 @@
+Redoing the old site (https://github.com/Aurelia-Certamen-Reader/Certamen-Buzzer) but ✨better✨ and with ✨React✨
+
+Components:
+- Normal buzzery site; will exist at the root; doesn't exist yet
+    - Basically a duplicate of the original
+- Database query-er
