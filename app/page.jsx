@@ -36,14 +36,14 @@ export default function Page() {
 export function QuestionCard({ question }) {
   const round = question.round;
   return (
-    <li key={question._id}>
-      <div>{`${round.series} ${round.division} ${round.year} | ${(round.number === -1 ? "FINAL ROUND" : "ROUND " + $round.number)}`.toUpperCase()} </div> {/*Header*/}
+    <li>
+      <div>{`${round.series} ${round.division} ${round.year} | ${(round.number === -1 ? "FINAL ROUND" : "ROUND " + round.number)}`.toUpperCase()} </div> {/*Header*/}
       <div> {/*All the question content*/}
         <p>Tossup {question.number}</p>
         <p>{question.question}</p>
         <p>{question.answer}</p>
         <ul className={styles.question}> {/*Boni*/}
-          {question.boni.map((bonus, index) => <Bonus bonus={bonus} num={index + 1} />)} {/*Should maybe have a key? idk*/}
+          {question.boni.map((bonus, index) => <Bonus bonus={bonus} num={index + 1} key={index} />)} {/*Should maybe have a key? idk*/}
         </ul>
       </div>
     </li>
@@ -56,7 +56,7 @@ export function QuestionCard({ question }) {
  */
 function Bonus({ bonus, num }) {
   return (
-    <li key={num}>
+    <li>
       <hr></hr>
       <p>Bonus {num}</p>
       <p>{bonus.question}</p>
