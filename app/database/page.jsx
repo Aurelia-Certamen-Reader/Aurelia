@@ -6,7 +6,6 @@ export default function DatabasePage() {
     return (<>
         <p>Hello DatabasePage</p>
         <DatabaseSearch />
-        <QuestionCard />
     </>);
 }
 
@@ -32,7 +31,7 @@ async function handleSearch(e) {
     if (response.ok) {
         const questions = await response.json();
         console.log(questions);
-    } else{
+    } else {
         console.log(":(")
     }
 }
