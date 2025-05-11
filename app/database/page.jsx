@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { QuestionCard } from "../page";
-import styles from '../styles.module.css'
 
 export default function DatabasePage() {
     const [questions, setQuestions] = useState([])
     return (<>
         <p>Hello DatabasePage</p>
         <DatabaseSearch />
-        <ul className={styles.question}>{
+        <ul>{
             questions.length === 0 ?
                 <p>No questions found</p> :
                 questions.map(q => <QuestionCard question={q} key={q._id}/>)

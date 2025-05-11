@@ -1,4 +1,3 @@
-import styles from './styles.module.css'
 import '../globals.css'
 export default function Page() {
   return <p>Hello world!</p>;
@@ -42,7 +41,7 @@ export function QuestionCard({ question }) {
         <p>Tossup {question.number}</p>
         <p>{question.question}</p>
         <p>{question.answer}</p>
-        <ul className={styles.question}> {/*Boni*/}
+        <ul> {/*Boni*/}
           {question.boni.map((bonus, index) => <Bonus bonus={bonus} num={index + 1} key={index} />)} {/*Should maybe have a key? idk*/}
         </ul>
       </div>
