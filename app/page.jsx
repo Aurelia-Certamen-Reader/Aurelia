@@ -1,5 +1,5 @@
 import styles from './styles.module.css'
-
+import '../globals.css'
 export default function Page() {
   return <p>Hello world!</p>;
 }
