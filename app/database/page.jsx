@@ -8,10 +8,10 @@ export default function DatabasePage() {
     return (<>
         <p>Hello DatabasePage</p>
         <DatabaseSearch />
-        <ul>{
+        <ul className="list-none">{
             questions.length === 0 ?
                 <p>No questions found</p> :
-                questions.map(q => <QuestionCard question={q} key={q._id}/>)
+                questions.map(q => <QuestionCard question={q} key={q._id} />)
         }</ul>
     </>);
 
