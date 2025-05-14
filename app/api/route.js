@@ -20,11 +20,43 @@ async function query(query) {
     let pipeline = []
     const roundInfo = (query.difficulty.length !== 0)
     const questionInfo = (query.keywords)
+    let results;
 
-    // ROUND INFO
+    if (query.keywords) { // $search has to be the first pipeline stage
+        pipeline.push({
+            $search: {
+                "text": {
+                    "query": query.keywords,
+                    "path": ["question", "answer", "boni.question", "boni.answer"],
+                }
+            }
+        });
+        // Add round info so it displays nicely
+        pipeline.push({
+            $lookup: {
+                from: "Rounds",
+                localField: "round",
+                foreignField: "_id",
+                as: "round"
+            }
+        });
+        pipeline.push({ // Make it not in array form
+            $set: { "round": { $arrayElemAt: ["$round", 0] } }
+        });
+        // Other filters here
+        if (roundInfo) {
+            const difficulties = query.difficulty.map(diff => ({ "round.division": diff }))
+            pipeline.push({ $match: { $or: difficulties } });
+        }
+        results = questions.aggregate(pipeline);
+        results = await results.toArray()
+        return results;
+    }
+
+    // Round info
     if (roundInfo) {
         const difficulties = query.difficulty.map(diff => ({ "division": diff }))
-        pipeline.push({ $match: { $or: difficulties } }); // Find advanced rounds // TODO: don't do this if there isn't any difficulty selection lol
+        pipeline.push({ $match: { $or: difficulties } }); // TODO: don't do this if there isn't any difficulty selection lol
         pipeline.push({ // Find questions that match round properties
             $lookup: {
                 from: "Questions",
@@ -50,10 +82,18 @@ async function query(query) {
                 }
             }
         });
-        let results = rounds.aggregate(pipeline); // TODO: fix if there is only question info
+        results = rounds.aggregate(pipeline)
         results = await results.toArray();
         return results;
     }
+
+    // If there is non-keyword question info:
+    /*
+    Do the question info
+    - If there was not round info, get the round info for each question
+    */
+
+    return []; // No query -> no results
 }
 
 /**
