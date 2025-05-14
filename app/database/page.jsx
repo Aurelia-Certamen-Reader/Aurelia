@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { QuestionCard } from "../page";
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 
 export default function DatabasePage() {
     const [questions, setQuestions] = useState([])
@@ -17,18 +19,16 @@ export default function DatabasePage() {
                 </ul>
             </>
         }
-
-
     </>);
 
     function DatabaseSearch() {
         return (<form onSubmit={handleSearch}>
-            <input type="text" name="keywords" /> <br />
+            <TextField id="keywords" label="Keywords" variant="outlined" name="keywords" /> <br />
             <label><input type="checkbox" name="difficulty" value="novice" />Novice</label><br />
             <label><input type="checkbox" name="difficulty" value="intermediate" />Intermediate</label><br />
             <label><input type="checkbox" name="difficulty" value="advanced" />Advanced</label><br />
             <label><input type="checkbox" name="difficulty" value="elite" />Elite</label><br />
-            <button type="submit">Search</button>
+            <Button type="submit" variant="contained">Search</Button>
         </form>)
     }
 
