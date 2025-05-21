@@ -82,7 +82,7 @@ async function query(query) {
                 }
             }
         });
-        results = rounds.aggregate(pipeline)
+        results = rounds.aggregate(pipeline);
         results = await results.toArray();
         return results;
     }
@@ -93,7 +93,23 @@ async function query(query) {
     - If there was not round info, get the round info for each question
     */
 
-    return []; // No query -> no results
+    // No query -> random results:
+    pipeline.push({ $sample: { size: 100 } });
+    // Add round info so it displays nicely
+    pipeline.push({
+        $lookup: {
+            from: "Rounds",
+            localField: "round",
+            foreignField: "_id",
+            as: "round"
+        }
+    });
+    pipeline.push({ // Make it not in array form
+        $set: { "round": { $arrayElemAt: ["$round", 0] } }
+    });
+    results = questions.aggregate(pipeline);
+    results = await results.toArray();
+    return results;
 }
 
 /**
