@@ -1,9 +1,12 @@
 "use client"
-
 import { useState } from "react";
-import { QuestionCard } from "../page";
+
+import { QuestionCard } from "../QuestionCard";
+
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+
+import '../../globals.css';
 
 export default function DatabasePage() {
     const [questions, setQuestions] = useState([])
