@@ -1,10 +1,9 @@
 "use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import '../globals.css'
 import { Button, TextField } from '@mui/material';
-import Script from "next/script";
 
 /**
  * Possible game states:
@@ -22,6 +21,7 @@ var game = {
   buzzed: false, // whether someone has buzzed in
   wordIndex: 0,
   questions: [], // list of questions to be read
+  currentFetch: null, // current promise for fetching questions
   timeLeft: 0, // time left before the question times out; only matters if the end of the question has been reached
 };
 
@@ -55,11 +55,30 @@ function submitAnswer() {
   updateGameState("answered");
 }
 
+function loadMoreQuestions() {
+  if (game.currentFetch) { // prevent having multiple fetches run at once
+    return game.currentFetch;
+  }
+  game.currentFetch = (async () => {
+    const response = await fetch('/api', {
+      method: 'POST',
+      body: new FormData(),
+    });
+    const loadedQuestions = await response.json();
+    console.log(loadedQuestions);
+    game.questions.push(...loadedQuestions);
+    game.currentFetch = null; // clear the promise once it's been fulfilled
+  })();
+  return game.currentFetch;
+}
+
 export default function Page() {
   const [questionText, setQuestionText] = useState(""); // used for the text being displayed
   const [oldQuestions, setOldQuestions] = useState([]); // used for question log
   const [gameState, setGameState] = useState(game.state); // synced to game.state
   updateReactGameState = setGameState; // function used by game logic to update the react state
+
+  useEffect(() => { loadMoreQuestions() }, []); // on start, load a bank of questions
 
   return (
     <>
