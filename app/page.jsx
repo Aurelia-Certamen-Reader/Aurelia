@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import '../globals.css'
 import { Button, TextField } from '@mui/material';
 
+import { QuestionCard } from "./QuestionCard";
 /**
  * Possible game states:
  * - "initial" - not started
@@ -23,28 +24,100 @@ var game = {
   questions: [], // list of questions to be read
   currentFetch: null, // current promise for fetching questions
   timeLeft: 0, // time left before the question times out; only matters if the end of the question has been reached
+  stop: false, // has an event occurred which should stop the display of the current question? functions somewhat as a lock; no game state can be updated while this is true
+  finishedDisplaying: false,
 };
 
 var updateReactGameState;
+var displayWord;
+var clearDisplay;
+var addToLog;
 
 function updateGameState(newState) { // sets the game state and syncs with the react gameState; must use this function to update state
   game.state = newState;
-  updateReactGameState(newState)
+  updateReactGameState(newState);
 }
 
-function handleButton1Click() {
+async function handleButton1Click() {
+  if (game.stop) { // can't do anything if waiting for the game to stop
+    return;
+  }
   if (game.state === "initial") { // "Start"
+    if (game.questions.length == 0) {
+      await loadMoreQuestions();
+    }
+    game.currentQuestion = game.questions.shift();
     updateGameState("displaying");
+    displayQuestion();
   } else if (game.state === "paused") { // "Resume"
     updateGameState("displaying");
+    displayQuestion();
   } else if (game.state === "displaying") { // "Pause"
     updateGameState("paused");
+    if (!game.finishedDisplaying) {
+      game.stop = true;
+    }
   }
-  // console.log("Button 1 clicked, game state is now:", game.state);
 }
 
-function handleButton2Click() {
-  updateGameState("displaying");
+async function handleButton2Click() {
+  if (game.stop) { // can't do anything if waiting for the game to stop
+    return;
+  }
+  if (game.state == "displaying") { // "Skip"
+    if (!game.finishedDisplaying) {
+      game.stop = true;
+    }
+  } else if (game.state == "answered") { // "Next"
+  }
+  while (game.stop) { // spin lock lol; can't start displaying until the previous thing is finished
+    await sleep(1);
+  }
+  await changeQuestion();
+  clearDisplay();
+  displayQuestion();
+}
+
+// Used by next/skip to advance through questions / question parts
+async function changeQuestion() {
+  if (game.questionPart == -1) { // Log a tossup
+    const question = { ...game.currentQuestion }; // Make a shallow copy to pass to the log function
+    question.boni = []; // Hide the boni
+    addToLog(question, true);
+  } else {
+    addToLog(game.currentQuestion.boni[game.questionPart], false);
+  }
+  game.questionPart++;
+  game.wordIndex = 0;
+
+  if (game.questionPart >= game.currentQuestion.boni.length) { // If we're on the last part of the question, get a new question
+    if (game.questions.length == 0) {
+      await loadMoreQuestions();
+    }
+    game.currentQuestion = game.questions.shift();
+    game.questionPart = -1;
+    // TODO: refill questions when bank is low
+    return;
+  }
+}
+
+async function displayQuestion() {
+  const questionText = (game.questionPart == -1 ? game.currentQuestion.question : game.currentQuestion.boni[game.questionPart].question);
+  const questionWords = questionText.split(" ");
+
+  game.finishedDisplaying = false;
+  for (; game.wordIndex < questionWords.length; game.wordIndex++) {
+    if (game.stop) { // check this at the start to keep wordIndex correct
+      game.stop = false; // unlock
+      return; // stop displaying
+    }
+    displayWord(questionWords[game.wordIndex]);
+    await sleep(250);
+  }
+  // Reached end of question
+  game.stop = false;
+  game.finishedDisplaying = true;
+  // TODO: timeout logic
 }
 
 function handleBuzz() {
@@ -77,7 +150,16 @@ export default function Page() {
   const [oldQuestions, setOldQuestions] = useState([]); // used for question log
   const [gameState, setGameState] = useState(game.state); // synced to game.state
   updateReactGameState = setGameState; // function used by game logic to update the react state
-
+  displayWord = (word) => { setQuestionText(text => text + word + " ") }; // Use updater function so clearing works correctly (https://react.dev/reference/react/useState#updating-state-based-on-the-previous-state)
+  addToLog = (question, isTossup) => {
+    if (isTossup) {
+      setOldQuestions([question, ...oldQuestions])
+    } else {
+      oldQuestions[0].boni.push(question);
+      setOldQuestions(oldQuestions)
+    }
+  }
+  clearDisplay = () => { setQuestionText(""); };
   useEffect(() => { loadMoreQuestions() }, []); // on start, load a bank of questions
 
   return (
@@ -98,4 +180,9 @@ export default function Page() {
       </ul>
     </>
   );
+}
+
+// Sleep for time in ms
+function sleep(time) {
+  return new Promise(resolve => setTimeout(resolve, time));
 }
