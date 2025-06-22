@@ -25,19 +25,21 @@ var game = {
   currentFetch: null, // current promise for fetching questions
   timeLeft: 0, // time left before the question times out; only matters if the end of the question has been reached
   stop: false, // has an event occurred which should stop the display of the current question? functions somewhat as a lock; no game state can be updated while this is true
-  finishedDisplaying: false,
+  finishedDisplaying: false, // has the end of the current question been reached?
 };
 
 var updateReactGameState;
 var displayWord;
 var clearDisplay;
 var addToLog;
+var revealAnswer;
 
 function updateGameState(newState) { // sets the game state and syncs with the react gameState; must use this function to update state
   game.state = newState;
   updateReactGameState(newState);
 }
 
+/** Starts and stops the game */
 async function handleButton1Click() {
   if (game.stop) { // can't do anything if waiting for the game to stop
     return;
@@ -54,22 +56,21 @@ async function handleButton1Click() {
     displayQuestion();
   } else if (game.state === "displaying") { // "Pause"
     updateGameState("paused");
-    if (!game.finishedDisplaying) {
-      game.stop = true;
-    }
+    interrupt()
   }
 }
 
+/** Advances to the next question */
 async function handleButton2Click() {
   if (game.stop) { // can't do anything if waiting for the game to stop
     return;
   }
   if (game.state == "displaying") { // "Skip"
-    if (!game.finishedDisplaying) {
-      game.stop = true;
-    }
+    interrupt()
   } else if (game.state == "answered") { // "Next"
+    updateGameState("displaying");
   }
+  // Move to the next question
   while (game.stop) { // spin lock lol; can't start displaying until the previous thing is finished
     await sleep(1);
   }
@@ -78,7 +79,25 @@ async function handleButton2Click() {
   displayQuestion();
 }
 
-// Used by next/skip to advance through questions / question parts
+function handleBuzz() {
+  updateGameState("buzzed");
+  interrupt()
+}
+
+function submitAnswer() {
+  updateGameState("answered");
+  const currentQuestionPartial = (game.questionPart == -1 ? game.currentQuestion : game.currentQuestion.boni[game.questionPart]);
+  revealAnswer(currentQuestionPartial.answer, currentQuestionPartial.question)
+}
+
+/** Stops the display of the current question */
+function interrupt() {
+  if (!game.finishedDisplaying) {
+    game.stop = true;
+  }
+}
+
+/** Used by next/skip to advance through questions / question parts */
 async function changeQuestion() {
   if (game.questionPart == -1) { // Log a tossup
     const question = { ...game.currentQuestion }; // Make a shallow copy to pass to the log function
@@ -120,14 +139,6 @@ async function displayQuestion() {
   // TODO: timeout logic
 }
 
-function handleBuzz() {
-  updateGameState("buzzed");
-}
-
-function submitAnswer() {
-  updateGameState("answered");
-}
-
 function loadMoreQuestions() {
   if (game.currentFetch) { // prevent having multiple fetches run at once
     return game.currentFetch;
@@ -149,6 +160,10 @@ export default function Page() {
   const [questionText, setQuestionText] = useState(""); // used for the text being displayed
   const [oldQuestions, setOldQuestions] = useState([]); // used for question log
   const [gameState, setGameState] = useState(game.state); // synced to game.state
+  const [playerAnswer, setPlayerAnswer] = useState("");
+  const [answer, setAnswer] = useState("");
+
+  // Callbacks
   updateReactGameState = setGameState; // function used by game logic to update the react state
   displayWord = (word) => { setQuestionText(text => text + word + " ") }; // Use updater function so clearing works correctly (https://react.dev/reference/react/useState#updating-state-based-on-the-previous-state)
   addToLog = (question, isTossup) => {
@@ -160,21 +175,39 @@ export default function Page() {
     }
   }
   clearDisplay = () => { setQuestionText(""); };
+  revealAnswer = (answerLine, fullQuestionText) => {
+    setAnswer(answerLine)
+    setQuestionText(fullQuestionText)
+  }
+
   useEffect(() => { loadMoreQuestions() }, []); // on start, load a bank of questions
 
   return (
     <>
-      <Button variant='contained' disabled={(gameState == "buzzed") || (gameState == "answered")} onClick={handleButton1Click}>{
-        gameState == "initial" ? "Start" :
-          gameState == "paused" ? "Resume" :
-            "Pause"}</Button> {/*Button 1*/}
-      <Button variant='contained' disabled={!(gameState == "answered" || gameState == "displaying")} onClick={handleButton2Click}>{
-        gameState == "answered" ? "Next" :
-          "Skip"}</Button> {/*Button 2*/}
-      <Button variant='contained' disabled={gameState != "displaying"} onClick={handleBuzz}>Buzz</Button> {/*Button 3*/}
-      <span hidden={!(gameState == "buzzed")}> <label>Answer: <input /></label> <Button variant="contained" onClick={submitAnswer}>Submit</Button> </span> {/* TODO: submit answer on enter being pressed; autofocus when unhidden */}
-      <br />
+      <div className="flex gap-2 items-center">
+        {/*Button 1*/}
+        <Button variant='contained' disabled={(gameState == "buzzed") || (gameState == "answered")} onClick={handleButton1Click}>{
+          gameState == "initial" ? "Start" :
+            gameState == "paused" ? "Resume" :
+              "Pause"}</Button>
+
+        {/*Button 2*/}
+        <Button variant='contained' disabled={!(gameState == "answered" || gameState == "displaying")} onClick={handleButton2Click}>{
+          gameState == "answered" ? "Next" :
+            "Skip"}</Button>
+
+        {/*Button 3*/}
+        <Button variant='contained' disabled={gameState != "displaying"} onClick={handleBuzz}>Buzz</Button>
+
+        {/* Answer Submission */}
+        <span hidden={!(gameState == "buzzed")}>
+          <label onChange={e => { setPlayerAnswer(e.target.value) }}>Answer: <input /></label>
+          <Button variant="contained" onClick={submitAnswer}>Submit</Button>
+        </span> {/* TODO: submit answer on enter being pressed; autofocus when unhidden */}
+        <span hidden={!(gameState == "answered")}>{playerAnswer}</span>
+      </div>
       <div>{questionText}</div>
+      <div hidden={!(gameState == "answered")}>{answer}</div>
       <ul className="list-none">
         {oldQuestions.map(q => <QuestionCard question={q} key={q._id} />)}
       </ul>
