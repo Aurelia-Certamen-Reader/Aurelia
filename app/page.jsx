@@ -19,13 +19,13 @@ var game = {
   state: "initial",
   questionPart: -1, // -1 for tossup, otherwise index of current bonus
   currentQuestion: null,
-  buzzed: false, // whether someone has buzzed in
+  // buzzed: false, // whether someone has buzzed in
   wordIndex: 0,
   questions: [], // list of questions to be read
   currentFetch: null, // current promise for fetching questions
-  timeLeft: 0, // time left before the question times out; only matters if the end of the question has been reached
-  stop: false, // has an event occurred which should stop the display of the current question? functions somewhat as a lock; no game state can be updated while this is true
-  finishedDisplaying: false, // has the end of the current question been reached?
+  // timeLeft: 0, // time left before the question times out; only matters if the end of the question has been reached
+  // finishedDisplaying: false, // has the end of the current question been reached?
+  currentDisplayLoop: 1, // tracks the id of the current display loop to make sure only one runs at a time
 };
 
 var updateReactGameState;
@@ -41,15 +41,12 @@ function updateGameState(newState) { // sets the game state and syncs with the r
 
 /** Starts and stops the game */
 async function handleButton1Click() {
-  if (game.stop) { // can't do anything if waiting for the game to stop
-    return;
-  }
   if (game.state === "initial") { // "Start"
+    updateGameState("displaying");
     if (game.questions.length == 0) {
       await loadMoreQuestions();
     }
     game.currentQuestion = game.questions.shift();
-    updateGameState("displaying");
     displayQuestion();
   } else if (game.state === "paused") { // "Resume"
     updateGameState("displaying");
@@ -62,18 +59,12 @@ async function handleButton1Click() {
 
 /** Advances to the next question */
 async function handleButton2Click() {
-  if (game.stop) { // can't do anything if waiting for the game to stop
-    return;
-  }
   if (game.state == "displaying") { // "Skip"
     interrupt()
   } else if (game.state == "answered") { // "Next"
     updateGameState("displaying");
   }
   // Move to the next question
-  while (game.stop) { // spin lock lol; can't start displaying until the previous thing is finished
-    await sleep(1);
-  }
   await changeQuestion();
   clearDisplay();
   displayQuestion();
@@ -92,9 +83,7 @@ function submitAnswer() {
 
 /** Stops the display of the current question */
 function interrupt() {
-  if (!game.finishedDisplaying) {
-    game.stop = true;
-  }
+  game.currentDisplayLoop++ // any running display loops will be out of date and stop
 }
 
 /** Used by next/skip to advance through questions / question parts */
@@ -124,19 +113,16 @@ async function displayQuestion() {
   const questionText = (game.questionPart == -1 ? game.currentQuestion.question : game.currentQuestion.boni[game.questionPart].question);
   const questionWords = questionText.split(" ");
 
-  game.finishedDisplaying = false;
-  for (; game.wordIndex < questionWords.length; game.wordIndex++) {
-    if (game.stop) { // check this at the start to keep wordIndex correct
-      game.stop = false; // unlock
-      return; // stop displaying
+  const thisLoopId = game.currentDisplayLoop
+
+  while (game.wordIndex < questionWords.length) {
+    if (thisLoopId != game.currentDisplayLoop) {
+      return
     }
     displayWord(questionWords[game.wordIndex]);
+    game.wordIndex++
     await sleep(250);
   }
-  // Reached end of question
-  game.stop = false;
-  game.finishedDisplaying = true;
-  // TODO: timeout logic
 }
 
 function loadMoreQuestions() {
@@ -149,7 +135,6 @@ function loadMoreQuestions() {
       body: new FormData(),
     });
     const loadedQuestions = await response.json();
-    console.log(loadedQuestions);
     game.questions.push(...loadedQuestions);
     game.currentFetch = null; // clear the promise once it's been fulfilled
   })();
