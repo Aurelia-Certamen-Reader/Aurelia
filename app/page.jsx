@@ -163,6 +163,7 @@ export default function Page() {
   revealAnswer = (answerLine, fullQuestionText) => {
     setAnswer(answerLine)
     setQuestionText(fullQuestionText)
+    setPlayerAnswer("")
   }
 
   useEffect(() => { loadMoreQuestions() }, []); // on start, load a bank of questions
@@ -186,7 +187,7 @@ export default function Page() {
 
         {/* Answer Submission */}
         <span hidden={!(gameState == "buzzed")}>
-          <label onChange={e => { setPlayerAnswer(e.target.value) }}>Answer: <input /></label>
+          <label>Answer: <input value={playerAnswer} onChange={e => setPlayerAnswer(e.target.value)} /></label>
           <Button variant="contained" onClick={submitAnswer}>Submit</Button>
         </span> {/* TODO: submit answer on enter being pressed; autofocus when unhidden */}
         <span hidden={!(gameState == "answered")}>{playerAnswer}</span>
